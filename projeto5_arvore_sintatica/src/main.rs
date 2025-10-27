@@ -7,26 +7,48 @@ fn main() {
         teste.imprimir();
         print!("\n");
         teste.imprimir_arvore();
-        println!("\nResultado: {:?}", teste.avaliar());
+        println!("Resultado: {:?}", teste.avaliar());
         print!("\n");
     }
 
 }
 
+// fn get_profundidade(exp_pai: &Expressao, exp_filho:Box<Expressao>, profundidade: u8) -> Option<u8> {
+//     match exp_pai {
+//         Operacao(_, exp1, exp2) => {
+//             if *exp1 == exp_filho || *exp2 == exp_filho {
+//                 return Some(profundidade);
+//             }
+//             let 
+//             get_profundidade(exp1, exp_filho, profundidade + 1)
+//         }
+//         Negacao(_, exp) => {
+//             if *exp == exp_filho {
+//                 return Some(profundidade)
+//             }
+//             get_profundidade(exp, exp_filho, profundidade + 1)
+//         }
+//         Numero(_) => {
+//             None
+//         }
+//     }
+// }
+
+//#[derive(PartialEq)]
 enum Expressao {
-    Operacao(char, Box<Expressao>, Box<Expressao>),
-    Negacao(char, Box<Expressao>),
-    Numero(i64)
+    Operacao(char, Box<Expressao>, Box<Expressao>, u8), // char: operador, u8: profundidade 
+    Negacao(char, Box<Expressao>, u8), // char: negacao (-), u8: profundidade
+    Numero(i64, u8) // i64: numero, u8: profundidade
 }
 
 impl Expressao {
     fn eh_numero(&self) -> bool {
-        matches!(self, Numero(_))
+        matches!(self, Numero(_, _))
     }
 
     fn avaliar(&self) -> Option<i64> {
         match self {
-            Operacao(operador, exp1, exp2) => {
+            Operacao(operador, exp1, exp2, _) => {
                 let resultado_exp1 = exp1.avaliar()?;
                 let resultado_exp2 = exp2.avaliar()?;
 
@@ -51,21 +73,21 @@ impl Expressao {
                     _ => {return None}
                 }
            }
-           Negacao(_, exp) => {
+           Negacao(_, exp, _) => {
                 let resultado_exp = exp.avaliar()?;
 
                 return Some(resultado_exp * -1)
            }
-           Numero(num) => {
+           Numero(num, _) => {
                 return Some(*num);
            }
         }
     }
 
-    // Todo: refazer método de imprimir para não imprimir tanto parêntese (levar em consideração ordem de operações)
+    // Todo: refazer método de imprimir para não imprimir tanto parêntese (levar em consideração ordem de operações usando profundidade?)
     fn imprimir(&self) {
         match self {
-            Operacao(operador, exp1, exp2) => {
+            Operacao(operador, exp1, exp2, _) => {
                 if exp1.eh_numero() {
                     exp1.imprimir();
                 } else {
@@ -82,7 +104,7 @@ impl Expressao {
                     print!(")")
                 }
             }
-            Negacao(negacao, exp) => {
+            Negacao(negacao, exp, _) => {
                 print!("{negacao}");
                 if exp.eh_numero() {
                     exp.imprimir();
@@ -92,15 +114,40 @@ impl Expressao {
                     print!(")")
                 }
             }
-            Numero(num) => {
+            Numero(num, _) => {
                 print!("{num}")
             }
         }
     }
     
-    // Todo: implementar isso
+    // Todo: ajeitar impressões de nós após o útlimo ("└")
     fn imprimir_arvore(&self) {
-        print!("Arvore aqui...")
+        match self {
+            Operacao(operador, exp1, exp2, profundidade) => {
+                println!("{operador}");
+                for _i in 0..*profundidade {
+                    print!("| ");
+                }
+                print!("├ ");
+                exp1.imprimir_arvore();
+                for _i in 0..*profundidade {
+                    print!("| ");
+                }
+                print!("└ ");
+                exp2.imprimir_arvore();
+            }
+            Negacao(negacao, exp, profundidade) => {
+                println!("{negacao}");
+                for _i in 0..*profundidade {
+                    print!("| ");
+                }
+                print!("└ ");
+                exp.imprimir_arvore();
+            }
+            Numero(num, _profundidade) => {
+                println!("{num}")
+            }
+        }
     }
 }
 
@@ -108,69 +155,82 @@ impl Expressao {
 fn get_testes() -> [Expressao; 5] {
     let testes: [Expressao; 5] = [
         // "10 + 20"
-        Operacao(
+        Expressao::Operacao(
             '+',
-            Box::new(Numero(10)),
-            Box::new(Numero(20))
+            Box::new(Expressao::Numero(10, 1)),
+            Box::new(Expressao::Numero(20, 1)),
+            0
         ),
         
         // "10 / 0"
-        Operacao(
+        Expressao::Operacao(
             '/',
-            Box::new(Numero(10)),
-            Box::new(Numero(0))
+            Box::new(Expressao::Numero(10, 1)),
+            Box::new(Expressao::Numero(0, 1)),
+            0
         ),
         
         // "(10 + 20) * 30"
-        Operacao(
+        Expressao::Operacao(
             '*',
-            Box::new(Operacao(
+            Box::new(Expressao::Operacao(
                 '+',
-                Box::new(Numero(10)),
-                Box::new(Numero(20))
+                Box::new(Expressao::Numero(10, 2)),
+                Box::new(Expressao::Numero(20, 2)),
+                1
             )),
-            Box::new(Numero(30))
+            Box::new(Expressao::Numero(30, 1)),
+            0
         ),
         
         // "10 + 20 * 30"
-        Operacao(
+        Expressao::Operacao(
             '+',
-            Box::new(Numero(10)),
-            Box::new(Operacao(
+            Box::new(Expressao::Numero(10, 1)),
+            Box::new(Expressao::Operacao(
                 '*',
-                Box::new(Numero(20)),
-                Box::new(Numero(30))
-            ))
+                Box::new(Expressao::Numero(20, 2)),
+                Box::new(Expressao::Numero(30, 2)),
+                1
+            )),
+            0
         ),
         
         // "(-(10 + 20) + 30 + 40 + (50 + 60)) * -5"
-        Operacao(
+        Expressao::Operacao(
             '*',
-            Box::new(Operacao(
+            Box::new(Expressao::Operacao(
                 '+',
-                Box::new(Operacao(
+                Box::new(Expressao::Operacao(
                     '+',
-                    Box::new(Operacao(
+                    Box::new(Expressao::Operacao(
                         '+',
-                        Box::new(Negacao(
+                        Box::new(Expressao::Negacao(
                             '-',
-                            Box::new(Operacao(
+                            Box::new(Expressao::Operacao(
                                 '+',
-                                Box::new(Numero(10)),
-                                Box::new(Numero(20))
-                            ))
+                                Box::new(Expressao::Numero(10, 6)),
+                                Box::new(Expressao::Numero(20, 6)),
+                                5
+                            )),
+                            4
                         )),
-                        Box::new(Numero(30))
+                        Box::new(Expressao::Numero(30, 4)),
+                        3
                     )),
-                    Box::new(Numero(40))
+                    Box::new(Expressao::Numero(40, 3)),
+                    2
                 )),
-                Box::new(Operacao(
+                Box::new(Expressao::Operacao(
                     '+',
-                    Box::new(Numero(50)),
-                    Box::new(Numero(60))
-                ))
+                    Box::new(Expressao::Numero(50, 3)),
+                    Box::new(Expressao::Numero(60, 3)),
+                    2
+                )),
+                1
             )),
-            Box::new(Negacao('-', Box::new(Numero(5))))
+            Box::new(Expressao::Negacao('-', Box::new(Expressao::Numero(5, 2)), 1)),
+            0
         )
     ];
 
