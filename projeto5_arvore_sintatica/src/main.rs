@@ -13,42 +13,16 @@ fn main() {
 
 }
 
-// fn get_profundidade(exp_pai: &Expressao, exp_filho:Box<Expressao>, profundidade: u8) -> Option<u8> {
-//     match exp_pai {
-//         Operacao(_, exp1, exp2) => {
-//             if *exp1 == exp_filho || *exp2 == exp_filho {
-//                 return Some(profundidade);
-//             }
-//             let 
-//             get_profundidade(exp1, exp_filho, profundidade + 1)
-//         }
-//         Negacao(_, exp) => {
-//             if *exp == exp_filho {
-//                 return Some(profundidade)
-//             }
-//             get_profundidade(exp, exp_filho, profundidade + 1)
-//         }
-//         Numero(_) => {
-//             None
-//         }
-//     }
-// }
-
-//#[derive(PartialEq)]
 enum Expressao {
-    Operacao(char, Box<Expressao>, Box<Expressao>, u8), // char: operador, u8: profundidade 
-    Negacao(char, Box<Expressao>, u8), // char: negacao (-), u8: profundidade
-    Numero(i64, u8) // i64: numero, u8: profundidade
+    Operacao(char, Box<Expressao>, Box<Expressao>), // char: operador, expressões da esquerda e direita nessa ordem 
+    Negacao(Box<Expressao>), // negação de uma expressão
+    Numero(i64) // valor numérico
 }
 
 impl Expressao {
-    fn eh_numero(&self) -> bool {
-        matches!(self, Numero(_, _))
-    }
-
     fn avaliar(&self) -> Option<i64> {
         match self {
-            Operacao(operador, exp1, exp2, _) => {
+            Operacao(operador, exp1, exp2) => {
                 let resultado_exp1 = exp1.avaliar()?;
                 let resultado_exp2 = exp2.avaliar()?;
 
@@ -73,12 +47,12 @@ impl Expressao {
                     _ => {return None}
                 }
            }
-           Negacao(_, exp, _) => {
+           Negacao(exp) => {
                 let resultado_exp = exp.avaliar()?;
 
                 return Some(resultado_exp * -1)
            }
-           Numero(num, _) => {
+           Numero(num) => {
                 return Some(*num);
            }
         }
@@ -87,25 +61,13 @@ impl Expressao {
     // Todo: refazer método de imprimir para não imprimir tanto parêntese (levar em consideração ordem de operações usando profundidade?)
     fn imprimir(&self) {
         match self {
-            Operacao(operador, exp1, exp2, _) => {
-                if exp1.eh_numero() {
-                    exp1.imprimir();
-                } else {
-                    print!("(");
-                    exp1.imprimir();
-                    print!(")")
-                }
-                print!(" {operador} ");
-                if exp2.eh_numero() {
-                    exp2.imprimir();
-                } else {
-                    print!("(");
-                    exp2.imprimir();
-                    print!(")")
-                }
+            Operacao(operador, exp1, exp2) => {
+                let precedencia = get_precedencia(operador);
+                
+
             }
-            Negacao(negacao, exp, _) => {
-                print!("{negacao}");
+            Negacao(exp) => {
+                print!("-");
                 if exp.eh_numero() {
                     exp.imprimir();
                 } else {
@@ -114,7 +76,7 @@ impl Expressao {
                     print!(")")
                 }
             }
-            Numero(num, _) => {
+            Numero(num) => {
                 print!("{num}")
             }
         }
@@ -123,31 +85,28 @@ impl Expressao {
     // Todo: ajeitar impressões de nós após o útlimo ("└")
     fn imprimir_arvore(&self) {
         match self {
-            Operacao(operador, exp1, exp2, profundidade) => {
-                println!("{operador}");
-                for _i in 0..*profundidade {
-                    print!("| ");
-                }
-                print!("├ ");
-                exp1.imprimir_arvore();
-                for _i in 0..*profundidade {
-                    print!("| ");
-                }
-                print!("└ ");
-                exp2.imprimir_arvore();
+            Operacao(operador, exp1, exp2) => {
+                println!(".");
             }
-            Negacao(negacao, exp, profundidade) => {
-                println!("{negacao}");
-                for _i in 0..*profundidade {
-                    print!("| ");
-                }
-                print!("└ ");
-                exp.imprimir_arvore();
+            Negacao(exp) => {
+                println!(".");
             }
-            Numero(num, _profundidade) => {
+            Numero(num) => {
                 println!("{num}")
             }
         }
+    }
+    
+    fn eh_numero(&self) -> bool {
+        matches!(self, Numero(_))
+    }
+}
+
+fn get_precedencia(operador: &char) -> u8 {
+    match operador {
+        '+' | '-' => 1,
+        '*' | '/' | '%' => 2,
+        _ => 0
     }
 }
 
@@ -157,17 +116,15 @@ fn get_testes() -> [Expressao; 5] {
         // "10 + 20"
         Expressao::Operacao(
             '+',
-            Box::new(Expressao::Numero(10, 1)),
-            Box::new(Expressao::Numero(20, 1)),
-            0
+            Box::new(Expressao::Numero(10)),
+            Box::new(Expressao::Numero(20)),
         ),
         
         // "10 / 0"
         Expressao::Operacao(
             '/',
-            Box::new(Expressao::Numero(10, 1)),
-            Box::new(Expressao::Numero(0, 1)),
-            0
+            Box::new(Expressao::Numero(10)),
+            Box::new(Expressao::Numero(0)),
         ),
         
         // "(10 + 20) * 30"
@@ -175,25 +132,21 @@ fn get_testes() -> [Expressao; 5] {
             '*',
             Box::new(Expressao::Operacao(
                 '+',
-                Box::new(Expressao::Numero(10, 2)),
-                Box::new(Expressao::Numero(20, 2)),
-                1
+                Box::new(Expressao::Numero(10)),
+                Box::new(Expressao::Numero(20)),
             )),
-            Box::new(Expressao::Numero(30, 1)),
-            0
+            Box::new(Expressao::Numero(30)),
         ),
         
         // "10 + 20 * 30"
         Expressao::Operacao(
             '+',
-            Box::new(Expressao::Numero(10, 1)),
+            Box::new(Expressao::Numero(10)),
             Box::new(Expressao::Operacao(
                 '*',
-                Box::new(Expressao::Numero(20, 2)),
-                Box::new(Expressao::Numero(30, 2)),
-                1
+                Box::new(Expressao::Numero(20)),
+                Box::new(Expressao::Numero(30)),
             )),
-            0
         ),
         
         // "(-(10 + 20) + 30 + 40 + (50 + 60)) * -5"
@@ -206,31 +159,23 @@ fn get_testes() -> [Expressao; 5] {
                     Box::new(Expressao::Operacao(
                         '+',
                         Box::new(Expressao::Negacao(
-                            '-',
                             Box::new(Expressao::Operacao(
                                 '+',
-                                Box::new(Expressao::Numero(10, 6)),
-                                Box::new(Expressao::Numero(20, 6)),
-                                5
+                                Box::new(Expressao::Numero(10)),
+                                Box::new(Expressao::Numero(20)),
                             )),
-                            4
                         )),
-                        Box::new(Expressao::Numero(30, 4)),
-                        3
+                        Box::new(Expressao::Numero(30)),
                     )),
-                    Box::new(Expressao::Numero(40, 3)),
-                    2
+                    Box::new(Expressao::Numero(40)),
                 )),
                 Box::new(Expressao::Operacao(
                     '+',
-                    Box::new(Expressao::Numero(50, 3)),
-                    Box::new(Expressao::Numero(60, 3)),
-                    2
+                    Box::new(Expressao::Numero(50)),
+                    Box::new(Expressao::Numero(60)),
                 )),
-                1
             )),
-            Box::new(Expressao::Negacao('-', Box::new(Expressao::Numero(5, 2)), 1)),
-            0
+            Box::new(Expressao::Negacao(Box::new(Expressao::Numero(5)))),
         )
     ];
 
